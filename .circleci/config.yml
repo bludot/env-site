@@ -13,6 +13,7 @@ deploy-defaults: &deploy-aws-defaults
         name: Deploy to S3
         command: |
           APP_VERSION=$(cat ./workspace/build/version)
+          REACT_APP_APP_VERSION=$(cat ./workspace/build/version)
 
           # Wrap s3cmd to reuse options
           s3() {
