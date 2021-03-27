@@ -42,7 +42,7 @@ jobs:
   build-static:
     working_directory: ~/webapp
     docker:
-      - image: node:14.15.5-alpine3.12
+      - image: cimg/node:14.15.5
     environment:
       - APP_NAME: webapp
     steps:
