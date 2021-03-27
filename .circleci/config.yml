@@ -98,7 +98,7 @@ jobs:
   deploy-production:
     environment:
       - APP_CONFIG: production
-      - BUCKET_HOST: env-site/production
+      - BUCKET_HOST: env-site
     <<: *deploy-aws-defaults
 
 workflows:
