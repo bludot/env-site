@@ -86,6 +86,8 @@ jobs:
           name: Build static files
           command: |
             export APP_VERSION=$(cat ./workspace/build/version)
+            export REACT_APP_APP_VERSION=$(cat ./workspace/build/version)
+            export PUBLIC_URL=$(cat ./workspace/build/version)
             yarn build
       - run:
           name: Copy static files to the workspace
