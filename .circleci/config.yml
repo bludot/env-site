@@ -26,7 +26,7 @@ deploy-defaults: &deploy-aws-defaults
           }
 
           # Copy the current release
-          s3 cp --recursive ./workspace/build/dist/static/ "s3://${BUCKET_HOST}/${APP_VERSION}/"
+          s3 cp --recursive ./workspace/build/dist/static/ "s3://${BUCKET_HOST}/${APP_VERSION}/static/"
 
           # Copy the config.js file to the release dir
           s3 cp "./workspace/build/config/dynamic/${APP_CONFIG}.js" "s3://${BUCKET_HOST}/${APP_VERSION}/config.js"
