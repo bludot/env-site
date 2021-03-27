@@ -68,13 +68,13 @@ jobs:
             mkdir -p "./workspace/build"
             cp version "./workspace/build/version"
       - restore_cache:
-          key: dependencies-{{ checksum "package-lock.json" }}
+          key: dependencies-{{ checksum "yarn.lock" }}
       - run:
           name: Install dependencies
           command: |
             npm install --only=${NODE_ENV} --silent
       - save_cache:
-          key: dependencies-{{ checksum "package-lock.json" }}
+          key: dependencies-{{ checksum "yarn.lock" }}
           paths:
             - node_modules
       - run:
