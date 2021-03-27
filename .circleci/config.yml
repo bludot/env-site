@@ -95,7 +95,7 @@ jobs:
           paths:
             - build
 
-deploy-production:
+  deploy-production:
     environment:
       - APP_CONFIG: production
       - BUCKET_HOST: env-site/production
