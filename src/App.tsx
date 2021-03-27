@@ -18,7 +18,7 @@ function App() {
         >
           Learn React
         </a>
-        <code style={{ background: "#ccc", padding: "0.5em" }}>{
+        <code style={{ background: "rgb(30, 30, 30)", padding: "0.5em" }}>{
           JSON.stringify(window.CONFIG, null, 2)
         }</code>
       </header>
