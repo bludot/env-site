@@ -213,7 +213,7 @@ module.exports = function (webpackEnv) {
       // webpack uses `publicPath` to determine where the app is being served from.
       // It requires a trailing slash, or the file assets will get an incorrect path.
       // We inferred the "public path" (such as / or /my-project) from homepage.
-      publicPath: paths.publicUrlOrPath,
+      publicPath: `/${paths.publicUrlOrPath}`,
       // Point sourcemap entries to original disk location (format as URL on Windows)
       devtoolModuleFilenameTemplate: isEnvProduction
         ? info =>
@@ -308,6 +308,7 @@ module.exports = function (webpackEnv) {
       },
     },
     resolve: {
+      config: path.resolve(__dirname, 'client/config'),
       // This allows you to set a fallback for where webpack should look for modules.
       // We placed these paths second because we want `node_modules` to "win"
       // if there are any conflicts. This matches Node resolution mechanism.
@@ -557,6 +558,9 @@ module.exports = function (webpackEnv) {
       ],
     },
     plugins: [
+      new webpack.DefinePlugin({
+        'process.env.REACT_APP_APP_VERSION': JSON.stringify(process.env.APP_VERSION),
+      }),
       // Generates an `index.html` file with the <script> injected.
       new HtmlWebpackPlugin(
         Object.assign(

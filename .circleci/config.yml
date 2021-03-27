@@ -1,0 +1,191 @@
+deploy-defaults: &deploy-obs-defaults
+  working_directory: ~/webapp
+  docker:
+    - image: python:alpine
+  steps:
+    - attach_workspace:
+        at: ~/webapp/workspace
+    - run:
+        name: Install S3cmd
+        command: |
+          apk upgrade
+          apk add curl wget
+          curl -s https://api.github.com/repos/s3tools/s3cmd/releases/latest \
+          | grep "browser_download_url" \
+          | grep "py3*.*whl" \
+          | cut -d : -f 2,3 \
+          | tr -d \" \
+          | wget -qi -
+          rm s3cmd*.asc
+          pip3 install s3cmd*.whl
+    - deploy:
+        name: Deploy to OBS
+        command: |
+          APP_VERSION=$(cat ./workspace/build/version)
+
+          # Wrap s3cmd to reuse options
+          obscmd() {
+            s3cmd $1 \
+              --access_key=${OTC_ACCESS_KEY_ID} \
+              --secret_key=${OTC_SECRET_ACCESS_KEY} \
+              --host=${OTC_OBS_HOST} \
+              --region=${OTC_REGION} \
+              --host-bucket=${BUCKET_HOST}.${OTC_OBS_HOST} \
+              $2 $3 $4
+          }
+
+          # Copy the current release
+          obscmd put -r ./workspace/build/dist/static "s3://${BUCKET_HOST}/${APP_VERSION}/"
+
+          # Copy the config.js file to the release dir
+          obscmd put "./workspace/build/config/dynamic/${APP_CONFIG}.js" "s3://${BUCKET_HOST}/${APP_VERSION}/config.js"
+
+          # Remove the old index.html
+          obscmd rm "s3://${BUCKET_HOST}/index.html"
+
+          # Copy the new index.html to the root
+          obscmd put ./workspace/build/index.html "s3://${BUCKET_HOST}/index.html"
+
+          # Remove the robots.txt from folder
+          obscmd rm "s3://${BUCKET_HOST}/${APP_VERSION}/robots.txt"
+          
+          # Remove the index.html from version folder
+          obscmd rm "s3://${BUCKET_HOST}/${APP_VERSION}/index.html"
+          
+          # Remove the old robots.txt
+          obscmd rm "s3://${BUCKET_HOST}/robots.txt"
+
+          # Copy the new robots.txt to the root
+          obscmd put ./workspace/build/dist/robots.txt "s3://${BUCKET_HOST}/robots.txt"
+
+deploy-defaults: &deploy-aws-defaults
+  working_directory: ~/webapp
+  docker:
+    - image: python:alpine
+  steps:
+    - attach_workspace:
+        at: ~/webapp/workspace
+    - run:
+        name: Install awscli
+        command: pip3 install awscli
+    - deploy:
+        name: Deploy to S3
+        command: |
+          APP_VERSION=$(cat ./workspace/build/version)
+
+          # Wrap s3cmd to reuse options
+          s3() {
+            aws s3 $1 \
+              $2 $3 $4
+          }
+
+          # Copy the current release
+          s3 cp --recursive ./workspace/build/dist/static/ "s3://${BUCKET_HOST}/${APP_VERSION}/"
+
+          # Copy the config.js file to the release dir
+          s3 cp "./workspace/build/config/dynamic/${APP_CONFIG}.js" "s3://${BUCKET_HOST}/${APP_VERSION}/config.js"
+
+          # Remove the old index.html
+          s3 rm "s3://${BUCKET_HOST}/index.html"
+
+          # Copy the new index.html to the root
+          s3 cp ./workspace/build/dist/index.html "s3://${BUCKET_HOST}/index.html"
+
+          # Remove the old robots.txt
+          s3 rm "s3://${BUCKET_HOST}/robots.txt"
+
+          # Copy the new robots.txt to the root
+          s3 cp ./workspace/build/dist/robots.txt "s3://${BUCKET_HOST}/robots.txt"
+
+jobs:
+  build-static:
+    working_directory: ~/webapp
+    docker:
+      - image: circleci/node:carbon
+    environment:
+      - APP_NAME: webapp
+    steps:
+      - checkout
+      - run:
+          name: Set app version
+          command: |
+            if [ -n "${CIRCLE_TAG}" ]; then
+              APP_VERSION=${CIRCLE_TAG}
+            else
+              SEMVER_RE='[^0-9]*\([0-9]*\)[.]\([0-9]*\)[.]\([0-9]*\)\([0-9A-Za-z-]*\)'
+              LAST_VERSION=`git describe --tags --abbrev=0`
+              MAJOR=`echo $LAST_VERSION | sed -e "s#$SEMVER_RE#\1#"`
+              MINOR_OLD=`echo $LAST_VERSION | sed -e "s#$SEMVER_RE#\2#"`
+              MINOR_NEW="$(($MINOR_OLD+1))"
+              RC=`git rev-list --count $MAJOR.$MINOR_OLD.0..HEAD`
+              APP_VERSION="$MAJOR.$MINOR_NEW.0-rc.$RC"
+            fi
+            echo "${APP_VERSION}" > version
+      - run:
+          name: Store app version to workspace
+          command: |
+            mkdir -p "./workspace/build"
+            cp version "./workspace/build/version"
+      - restore_cache:
+          key: dependencies-{{ checksum "package-lock.json" }}
+      - run:
+          name: Install dependencies
+          command: |
+            npm install --only=${NODE_ENV} --silent
+      - save_cache:
+          key: dependencies-{{ checksum "package-lock.json" }}
+          paths:
+            - node_modules
+      - run:
+          name: Build static files
+          command: |
+            export APP_VERSION=$(cat ./workspace/build/version)
+            npm run build
+      - run:
+          name: Copy static files to the workspace
+          command: |
+            cp -r ./build "./workspace/build/dist"
+      - run:
+          name: Copy env configuration files to the workspace
+          command: |
+            cp -r "./src/client/config" "./workspace/build/config"
+      - persist_to_workspace:
+          root: workspace
+          paths:
+            - build
+
+deploy-production:
+    environment:
+      - APP_CONFIG: production
+      - BUCKET_HOST: env-site/production
+    <<: *deploy-aws-defaults
+
+workflows:
+  version: 2
+  unscheduled:
+    jobs:
+      - build-static:
+          requires:
+            - test
+          filters:
+            branches:
+              only: master
+            tags:
+              only: /^([0-9]|[1-9][0-9]*)\.([0-9]|[1-9][0-9]*)\.([0-9]|[1-9][0-9]*)$/
+      - approve-production:
+          type: approval
+          requires:
+            - build-static
+          filters:
+            tags:
+              only: /^([0-9]|[1-9][0-9]*)\.([0-9]|[1-9][0-9]*)\.([0-9]|[1-9][0-9]*)$/
+            branches:
+              ignore: /.*/
+      - deploy-production:
+          requires:
+            - approve-production
+          filters:
+            tags:
+              only: /^([0-9]|[1-9][0-9]*)\.([0-9]|[1-9][0-9]*)\.([0-9]|[1-9][0-9]*)$/
+            branches:
+              ignore: /.*/
