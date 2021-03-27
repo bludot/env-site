@@ -89,7 +89,7 @@ jobs:
       - run:
           name: Copy env configuration files to the workspace
           command: |
-            cp -r "./src/client/config" "./workspace/build/config"
+            cp -r "./src/config" "./workspace/build/config"
       - persist_to_workspace:
           root: workspace
           paths:
