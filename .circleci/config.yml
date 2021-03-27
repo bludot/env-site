@@ -106,8 +106,6 @@ workflows:
   unscheduled:
     jobs:
       - build-static:
-          requires:
-            - test
           filters:
             branches:
               only: master
