@@ -42,7 +42,7 @@ jobs:
   build-static:
     working_directory: ~/webapp
     docker:
-      - image: circleci/node:carbon
+      - image: node:14.15.5-alpine3.12
     environment:
       - APP_NAME: webapp
     steps:
