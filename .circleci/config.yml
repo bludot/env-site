@@ -12,9 +12,12 @@ deploy-defaults: &deploy-aws-defaults
     - deploy:
         name: Deploy to S3
         command: |
-          export APP_VERSION=$(cat ./workspace/build/version)
-          export REACT_APP_APP_VERSION=$(cat ./workspace/build/version)
-          export PUBLIC_URL=$(cat ./workspace/build/version)
+          APP_VERSION=$(cat ./workspace/build/version)
+          REACT_APP_APP_VERSION=$(cat ./workspace/build/version)
+          PUBLIC_URL=$(cat ./workspace/build/version)
+
+          echo $PUBLIC_URL
+          echo "\n"
 
           # Wrap s3cmd to reuse options
           s3() {
